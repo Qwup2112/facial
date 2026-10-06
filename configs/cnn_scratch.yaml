@@ -1,0 +1,16 @@
+_base_: base.yaml
+model:
+  name: cnn_scratch
+  width: 64                     # width 32 underfit: train F1 0.71 ~ val F1 0.68 at the best epoch
+data:
+  img_size: 96                  # upsampled from 48x48
+  in_channels: 1
+  normalize: half               # mean 0.5, std 0.5
+train:
+  batch_size: 64
+  weight_decay: 5.0e-4
+  stages:
+    - name: scratch
+      epochs: 40
+      trainable: [all]
+      lr: {all: 1.0e-3}

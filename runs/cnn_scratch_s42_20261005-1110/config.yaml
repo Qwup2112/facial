@@ -1,0 +1,83 @@
+runs_dir: runs
+data:
+  root: dataset
+  splits_dir: data/splits
+  num_classes: 7
+  source_size: 48
+  grayscale: true
+  use_offline_aug: true
+  num_workers: 0
+  cache_in_memory: true
+  img_size: 96
+  in_channels: 1
+  normalize: half
+augment:
+  enabled: true
+  crop_scale:
+  - 0.85
+  - 1.0
+  crop_ratio:
+  - 0.9
+  - 1.1
+  hflip: 0.5
+  rotation: 10
+  brightness: 0.3
+  contrast: 0.3
+  erasing_p: 0.25
+  erasing_scale:
+  - 0.02
+  - 0.1
+train:
+  optimizer: adamw
+  label_smoothing: 0.1
+  class_weight: auto
+  class_weight_ratio: 3.0
+  focal_loss: false
+  focal_gamma: 2.0
+  warmup_epochs: 1
+  min_lr: 1.0e-06
+  grad_clip: 5.0
+  amp: true
+  early_stop_patience: 100
+  monitor: val_macro_f1
+  batch_size: 64
+  weight_decay: 0.0005
+  stages:
+  - name: scratch
+    epochs: 40
+    trainable:
+    - all
+    lr:
+      all: 0.001
+eval:
+  bootstrap_samples: 1000
+  bootstrap_seed: 0
+  timing_warmup: 20
+  timing_runs: 200
+seeds:
+- 42
+- 123
+- 2024
+model:
+  name: cnn_scratch
+  width: 64
+seed: 42
+run:
+  dir: runs/cnn_scratch_s42_20261005-1110
+  dry_run: false
+  device: cuda
+  gpu: NVIDIA GeForce RTX 3050 Laptop GPU
+  amp: true
+  torch: 2.14.0+cu130
+  torchvision: 0.29.0+cu130
+  n_train: 47712
+  n_val: 4025
+  n_params: 4689735
+  classes:
+  - angry
+  - disgust
+  - fear
+  - happy
+  - neutral
+  - sad
+  - surprise

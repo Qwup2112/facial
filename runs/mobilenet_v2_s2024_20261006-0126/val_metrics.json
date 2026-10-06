@@ -1,0 +1,206 @@
+{
+  "run": "mobilenet_v2_s2024_20261006-0126",
+  "model": "mobilenet_v2",
+  "seed": 2024,
+  "split": "val",
+  "n_images": 4025,
+  "classes": [
+    "angry",
+    "disgust",
+    "fear",
+    "happy",
+    "neutral",
+    "sad",
+    "surprise"
+  ],
+  "best_epoch": 23,
+  "best_val_macro_f1": 0.6819508950648664,
+  "accuracy": 0.6807453416149069,
+  "macro_f1": 0.6814284585673117,
+  "weighted_f1": 0.6814284585673117,
+  "ci95": {
+    "accuracy": [
+      0.6660869565217391,
+      0.6956583850931677
+    ],
+    "macro_f1": [
+      0.6675280509493446,
+      0.6958856761808049
+    ]
+  },
+  "bootstrap_samples": 1000,
+  "per_class": {
+    "angry": {
+      "precision": 0.5836236933797909,
+      "recall": 0.5826086956521739,
+      "f1": 0.5831157528285466,
+      "support": 575
+    },
+    "disgust": {
+      "precision": 0.8053830227743272,
+      "recall": 0.6765217391304348,
+      "f1": 0.7353497164461248,
+      "support": 575
+    },
+    "fear": {
+      "precision": 0.5456238361266295,
+      "recall": 0.5095652173913043,
+      "f1": 0.5269784172661871,
+      "support": 575
+    },
+    "happy": {
+      "precision": 0.859375,
+      "recall": 0.8608695652173913,
+      "f1": 0.8601216333622936,
+      "support": 575
+    },
+    "neutral": {
+      "precision": 0.5755102040816327,
+      "recall": 0.7356521739130435,
+      "f1": 0.6458015267175573,
+      "support": 575
+    },
+    "sad": {
+      "precision": 0.64349376114082,
+      "recall": 0.6278260869565218,
+      "f1": 0.6355633802816901,
+      "support": 575
+    },
+    "surprise": {
+      "precision": 0.7942754919499105,
+      "recall": 0.7721739130434783,
+      "f1": 0.783068783068783,
+      "support": 575
+    }
+  },
+  "per_source": {
+    "affectnet": {
+      "n_images": 441,
+      "accuracy": 0.6757369614512472,
+      "classes": [
+        "angry",
+        "disgust",
+        "fear"
+      ]
+    },
+    "ckplus": {
+      "n_images": 121,
+      "accuracy": 0.9008264462809917,
+      "classes": [
+        "angry",
+        "disgust",
+        "fear",
+        "happy",
+        "sad",
+        "surprise"
+      ]
+    },
+    "local": {
+      "n_images": 2060,
+      "accuracy": 0.5825242718446602,
+      "classes": [
+        "angry",
+        "disgust",
+        "fear",
+        "happy",
+        "neutral",
+        "sad",
+        "surprise"
+      ]
+    },
+    "rafdb": {
+      "n_images": 1403,
+      "accuracy": 0.8075552387740556,
+      "classes": [
+        "angry",
+        "disgust",
+        "fear",
+        "happy",
+        "neutral",
+        "sad",
+        "surprise"
+      ]
+    }
+  },
+  "confusion_matrix": [
+    [
+      335,
+      25,
+      75,
+      12,
+      72,
+      45,
+      11
+    ],
+    [
+      56,
+      389,
+      26,
+      17,
+      45,
+      34,
+      8
+    ],
+    [
+      67,
+      30,
+      293,
+      12,
+      68,
+      46,
+      59
+    ],
+    [
+      13,
+      1,
+      9,
+      495,
+      24,
+      18,
+      15
+    ],
+    [
+      35,
+      19,
+      36,
+      14,
+      423,
+      37,
+      11
+    ],
+    [
+      51,
+      10,
+      50,
+      11,
+      81,
+      361,
+      11
+    ],
+    [
+      17,
+      9,
+      48,
+      15,
+      22,
+      20,
+      444
+    ]
+  ],
+  "params": 2232839,
+  "checkpoint_mb": 8.73682689666748,
+  "ms_per_image": {},
+  "timing": {
+    "batch_size": 1,
+    "precision": "fp32",
+    "cpu_threads": 6,
+    "cpu": "Intel64 Family 6 Model 141 Stepping 1, GenuineIntel",
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU"
+  },
+  "torch": "2.14.0+cu130",
+  "tta_hflip": {
+    "accuracy": 0.689192546583851,
+    "macro_f1": 0.6897313796859142,
+    "weighted_f1": 0.6897313796859142
+  }
+}

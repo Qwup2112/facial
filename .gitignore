@@ -1,0 +1,14 @@
+# Datasets are not redistributed (RAF-DB, AffectNet, CK+ and FER2013 licences); see README
+dataset/
+dataset.zip
+dataset_removed/
+data/external/
+
+# Training outputs: keep each final run's best checkpoint, config, logs and metrics
+runs/dryrun_*/
+runs/**/last.pt
+runs/logs/*.log
+runs/logs/queue_status.txt
+
+__pycache__/
+*.pyc

@@ -1,0 +1,22 @@
+_base_: base.yaml
+model:
+  name: mobilenet_v2
+  pretrained: true
+  dropout: 0.5                  # was 0.3, which overfit (train F1 0.80 vs val 0.66)
+data:
+  img_size: 224                 # upsampled from 48x48; 112 if CPU-only
+  in_channels: 3
+  normalize: imagenet
+train:
+  batch_size: 32                # 64 if VRAM allows (RTX 3050 Laptop: 4 GB)
+  weight_decay: 5.0e-2          # was 1e-4: AdamW decay is scaled by lr, so 1e-4 barely regularized
+  stages:
+    - name: head
+      epochs: 3
+      trainable: [classifier]
+      lr: {classifier: 1.0e-3}
+    - name: finetune
+      epochs: 20
+      # whole network: features[7:] instead of features[14:] already raised val F1 0.665 -> 0.679
+      trainable: [all]
+      lr: {"features.14:": 1.0e-4, "features.7:": 5.0e-5, classifier: 5.0e-4, all: 2.0e-5}   # first matching prefix wins; all = features[:7]

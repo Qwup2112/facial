@@ -1,0 +1,39 @@
+runs_dir: runs
+data:
+  root: dataset                 # real data folder (train/ val/ test/ manifest.csv); never modify
+  splits_dir: data/splits       # written by src.data.index_splits
+  num_classes: 7
+  source_size: 48               # images are 48x48; CPU transforms run at this size, the GPU upsamples to img_size
+  grayscale: true
+  use_offline_aug: true         # false: drop train rows with source == augmented
+  num_workers: 0                # 0 = one background thread; each worker process costs ~1.4 GB commit on Windows
+  cache_in_memory: true         # images are 48x48 grayscale (~125 MB), see CLAUDE.md 3.5
+augment:                        # train-time augmentation, CLAUDE.md 3.5
+  enabled: true                 # false: train with the val transform (ablation)
+  crop_scale: [0.85, 1.0]       # RandomResizedCrop
+  crop_ratio: [0.9, 1.1]
+  hflip: 0.5
+  rotation: 10                  # degrees, never above 15
+  brightness: 0.3
+  contrast: 0.3
+  erasing_p: 0.25
+  erasing_scale: [0.02, 0.1]
+train:
+  optimizer: adamw
+  label_smoothing: 0.1
+  class_weight: auto            # auto | none — auto: on when train imbalance ratio > class_weight_ratio
+  class_weight_ratio: 3.0
+  focal_loss: false
+  focal_gamma: 2.0
+  warmup_epochs: 1
+  min_lr: 1.0e-6
+  grad_clip: 5.0
+  amp: true
+  early_stop_patience: 100      # longer than any stage = off; 6 stopped 5/9 runs before the low-lr end of the schedule
+  monitor: val_macro_f1         # best.pt = best epoch on this metric
+eval:                           # src.evaluate reads this block from this file, not from the checkpoint
+  bootstrap_samples: 1000
+  bootstrap_seed: 0             # same resamples for every model, so the CIs compare like with like
+  timing_warmup: 20             # inference time (batch size 1): warm-up passes ...
+  timing_runs: 200              # ... then timed passes
+seeds: [42, 123, 2024]
