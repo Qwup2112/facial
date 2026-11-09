@@ -4,6 +4,7 @@ Examples:
     python -m src.train --config configs/cnn_scratch.yaml --seed 42 --dry-run
     python -m src.train --config configs/cnn_scratch.yaml --seed 42 --overfit-batch
     python -m src.train --config configs/resnet18.yaml --seed 42
+    python -m src.train --config configs/transfer/resnet18.yaml --seed 42 --init runs/ckplus/resnet18_s42_<time>
 """
 import argparse
 import math
@@ -24,8 +25,8 @@ from tqdm import tqdm
 
 from src.data.dataset import FERDataset, PrefetchLoader, class_names, read_split
 from src.data.transforms import build_transforms, resize_batch
-from src.models import build_model
-from src.models.pretrained import freeze_bn_stats, param_groups, set_trainable
+from src.models import HEADS, build_model
+from src.models.pretrained import freeze_bn_stats, matches, param_groups, set_trainable
 from src.utils.config import load_config, save_config
 from src.utils.logger import CSVLogger, plot_curves
 from src.utils.metrics import classification_metrics
@@ -144,9 +145,36 @@ def run_epoch(model, loader, criterion, cfg: dict, device, use_amp: bool, desc: 
     return {"loss": loss_sum.item() / len(y_true), "acc": m["acc"], "macro_f1": m["macro_f1"]}
 
 
-def make_run_dir(cfg: dict, seed: int, dry_run: bool) -> Path:
-    """``runs/{model}_s{seed}_{YYYYmmdd-HHMM}/``; ``runs/dryrun_{model}/`` is overwritten each dry run."""
+def load_init(model, path, cfg: dict, classes: list[str]) -> list[str]:
+    """Start from another run's weights (transfer learning); returns the names not copied.
+
+    ``path`` is a run directory (its best.pt) or a checkpoint file. Every tensor whose name and
+    shape match is copied; only the classifier head may be left out (e.g. 6 CK+ classes -> 7),
+    and it keeps its fresh initialization.
+    """
+    path = Path(path)
+    ckpt = torch.load(path / "best.pt" if path.is_dir() else path, map_location="cpu", weights_only=True)
+    name = cfg["model"]["name"]
+    assert ckpt["model_name"] == name, f"--init is a {ckpt['model_name']} checkpoint, not {name}"
+    own = model.state_dict()
+    copy = {k: v for k, v in ckpt["model"].items() if k in own and own[k].shape == v.shape}
+    skipped = sorted(set(own) - set(copy))
+    head = [k for k in skipped if matches(k, HEADS[name])]
+    assert skipped == head, f"--init does not fit outside the head: {[k for k in skipped if k not in head][:3]}"
+    if not skipped:
+        assert ckpt["classes"] == classes, "--init head has the same size but other classes"
+    model.load_state_dict(copy, strict=False)
+    return skipped
+
+
+def make_run_dir(cfg: dict, seed: int, dry_run: bool, tag: str | None = None) -> Path:
+    """``runs/{model}_s{seed}_{YYYYmmdd-HHMM}/``; ``runs/dryrun_{model}/`` is overwritten each dry run.
+
+    ``tag`` (e.g. the CK+ fold ``f3``) goes after the model name.
+    """
     root, name = Path(cfg["runs_dir"]), cfg["model"]["name"]
+    if tag:
+        name = f"{name}_{tag}"
     if dry_run:
         run_dir = root / f"dryrun_{name}"
         shutil.rmtree(run_dir, ignore_errors=True)
@@ -212,17 +240,21 @@ def parse_args():
     ap.add_argument("--overfit-batch", action="store_true",
                     help="train on one fixed batch; accuracy must approach 100%%")
     ap.add_argument("--overfit-steps", type=int, default=200)
+    ap.add_argument("--init", help="start from this run's best.pt (or a .pt file); the head may differ")
     ap.add_argument("--cpu", action="store_true", help="use the CPU even if CUDA is available")
     return ap.parse_args()
 
 
-def main():
-    args = parse_args()
-    cfg = load_config(args.config)
-    seed = args.seed if args.seed is not None else cfg["seeds"][0]
+def train(cfg: dict, seed: int, dry_run: bool = False, overfit_steps: int = 0, init=None,
+          tag: str | None = None, cpu: bool = False):
+    """Train one model with a merged config; returns the run directory.
+
+    With ``overfit_steps`` > 0 it only runs the one-batch overfit check and returns pass/fail.
+    ``init``: weights to start from (see load_init). ``tag``: extra run-name part (see make_run_dir).
+    """
     cfg["seed"] = seed
     seed_everything(seed)
-    device = torch.device("cuda" if torch.cuda.is_available() and not args.cpu else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() and not cpu else "cpu")
     use_amp = bool(cfg["train"]["amp"]) and device.type == "cuda"
     torch.backends.cudnn.benchmark = device.type == "cuda"
     # The loader thread and the kernel-launching main thread share the GIL; finer switching
@@ -237,19 +269,23 @@ def main():
     assert class_names(val_df, num_classes) == classes, "train and val class folders differ"
     weight = compute_class_weights(train_df["label_idx"].to_numpy(), num_classes, t)
     criterion = build_criterion(t, weight).to(device)
-    model = build_model(name, num_classes, cfg).to(device)
+    model = build_model(name, num_classes, cfg)
+    if init:
+        skipped = load_init(model, init, cfg, classes)
+        cfg["init"] = {"from": Path(init).as_posix(), "not_copied": skipped}
+        print(f"init from {init}: copied all but {skipped or 'nothing'}")
+    model = model.to(device)
     n_params = sum(p.numel() for p in model.parameters())
     print(f"{name}: {n_params:,} params | device {device} | AMP {use_amp} | seed {seed}")
     print(f"train {len(train_df):,} | val {len(val_df):,} | class weights "
           f"{'off' if weight is None else [round(w, 3) for w in weight.tolist()]}")
 
-    if args.overfit_batch:
-        ok = overfit_batch(cfg, model, train_df, criterion, device, use_amp, args.overfit_steps, seed)
-        sys.exit(0 if ok else 1)
+    if overfit_steps:
+        return overfit_batch(cfg, model, train_df, criterion, device, use_amp, overfit_steps, seed)
 
-    if args.dry_run:
-        train_df = train_df.sample(n=DRY_RUN_BATCHES * t["batch_size"], random_state=seed)
-        val_df = val_df.sample(n=DRY_RUN_BATCHES * 2 * t["batch_size"], random_state=seed)
+    if dry_run:
+        train_df = train_df.sample(n=min(DRY_RUN_BATCHES * t["batch_size"], len(train_df)), random_state=seed)
+        val_df = val_df.sample(n=min(DRY_RUN_BATCHES * 2 * t["batch_size"], len(val_df)), random_state=seed)
 
     start = time.time()
     train_ds = FERDataset(train_df, build_transforms(cfg, train=True), d["grayscale"], d["cache_in_memory"])
@@ -259,9 +295,9 @@ def main():
     train_loader = make_loader(train_ds, t["batch_size"], True, cfg, device, seed, drop_last=True)
     val_loader = make_loader(val_ds, 2 * t["batch_size"], False, cfg, device, seed)
 
-    run_dir = make_run_dir(cfg, seed, args.dry_run)
+    run_dir = make_run_dir(cfg, seed, dry_run, tag)
     cfg["run"] = {
-        "dir": run_dir.as_posix(), "dry_run": args.dry_run, "device": str(device),
+        "dir": run_dir.as_posix(), "dry_run": dry_run, "device": str(device),
         "gpu": torch.cuda.get_device_name(0) if device.type == "cuda" else None, "amp": use_amp,
         "torch": str(torch.__version__), "torchvision": str(torchvision.__version__),
         "n_train": len(train_ds), "n_val": len(val_ds), "n_params": n_params, "classes": classes,
@@ -281,7 +317,7 @@ def main():
                                   stage["epochs"] * iters, float(t["min_lr"]))
         scaler = torch.amp.GradScaler(device.type, enabled=use_amp)
         early_stop = si == len(stages) - 1             # scratch / Stage B only (CLAUDE.md 4)
-        epochs = 1 if args.dry_run else stage["epochs"]
+        epochs = 1 if dry_run else stage["epochs"]
         bad = 0
         print(f"stage '{stage['name']}': {epochs} epoch(s) x {iters} iters | "
               f"trainable {n_trainable:,} params | lr {stage['lr']}")
@@ -316,6 +352,17 @@ def main():
 
     plot_curves(run_dir / "log.csv", run_dir / "curves.png", title=run_dir.name)
     print(f"done: best {monitor} = {sign * best:.4f} -> {run_dir / 'best.pt'}")
+    return run_dir
+
+
+def main():
+    args = parse_args()
+    cfg = load_config(args.config)
+    seed = args.seed if args.seed is not None else cfg["seeds"][0]
+    if args.overfit_batch:
+        ok = train(cfg, seed, overfit_steps=args.overfit_steps, init=args.init, cpu=args.cpu)
+        sys.exit(0 if ok else 1)
+    train(cfg, seed, dry_run=args.dry_run, init=args.init, cpu=args.cpu)
 
 
 if __name__ == "__main__":

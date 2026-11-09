@@ -1,0 +1,5 @@
+_base_: ../mobilenet_v2.yaml
+# ImageNet -> CK+ -> target dataset: train with --init runs/ckplus/mobilenet_v2_s<seed>_<time>.
+# Same two stages as configs/mobilenet_v2.yaml, so only the starting weights differ; the head is new (6 -> 7 classes).
+runs_dir: runs/transfer
+# data.splits_dir (base.yaml: data/splits) = the target dataset; point it at the new dataset's CSVs

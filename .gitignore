@@ -1,14 +1,38 @@
 # Datasets are not redistributed (RAF-DB, AffectNet, CK+ and FER2013 licences); see README
+# (git only treats '#' as a comment at the start of a line, so comments stay on their own lines)
 dataset/
 dataset.zip
 dataset_removed/
 data/external/
+# rebuilt from data/external by src.data.ckplus_folds
+data/ckplus/images/
+# colab/make_bundle.py output (contains the CK+ images)
+colab/upload/
 
 # Training outputs: keep each final run's best checkpoint, config, logs and metrics
 runs/dryrun_*/
+runs/**/dryrun_*/
 runs/**/last.pt
+# 30 fold models per model: keep configs, logs and test_probs.npz
+runs/ckplus_cv/**/*.pt
+runs/ckplus_tune/**/*.pt
 runs/logs/*.log
 runs/logs/queue_status.txt
+logs/
 
 __pycache__/
 *.pyc
+# Office lock files
+~$*
+
+# VTV faces (TV frames: not redistributed)
+data/vtv/
+# results collection (copies; contains TV frames and checkpoints, not redistributed)
+tong_hop_ket_qua/
+# app demo videos (TV footage; the 15-min one is over GitHub's 100 MB limit)
+reports/demo/*.mp4
+# src.data.mix_build output (rebuildable)
+data/mix/
+data/vtv_test/
+# stray clone of the GitHub repo (separate .git)
+facial/

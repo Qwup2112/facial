@@ -1,0 +1,6 @@
+_base_: resnet18.yaml
+# VTV (vtv_suggested build) + the course dataset's real faces, all aligned like the VTV crops (src.data.mix_build).
+# The rare classes get ~4,200 train faces each instead of 500-800; the RAF-DB test faces stay unseen.
+runs_dir: runs/transfer_mix
+data:
+  splits_dir: data/mix/splits

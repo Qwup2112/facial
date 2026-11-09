@@ -1,0 +1,13 @@
+_base_: ../cnn_scratch.yaml
+runs_dir: runs/ckplus             # transfer checkpoints; src.ckplus_cv writes to ckplus.cv_runs_dir
+data:
+  splits_dir: data/ckplus/splits/transfer   # src.ckplus_cv swaps in splits/fold{k}
+  num_classes: 6                  # CK+ has no neutral; contempt is dropped
+train:
+  batch_size: 32                  # ~750 train images: 23 steps per epoch
+  class_weight_ratio: 2.0         # CK+ is imbalanced (fear 75 vs surprise 249 images): weights on in every fold
+  stages:
+    - name: scratch
+      epochs: 100                 # 2,300 steps; the dataset is 60x smaller than dataset/
+      trainable: [all]
+      lr: {all: 1.0e-3}

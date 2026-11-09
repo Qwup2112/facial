@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Duyệt nhãn VTV</title>
+<style>
+:root {
+  --bg: #f6f6f4; --panel: #ffffff; --text: #1d1d1f; --muted: #6b6b70; --line: #dcdcd8; --accent: #1a73e8;
+  --angry: #c8323e; --disgust: #4f8a10; --fear: #7048e8; --happy: #c98a00; --neutral: #7a7f87;
+  --sad: #1f6fd1; --surprise: #d9620b; --_unsure: #8c8c8c; --_reject: #2b2b2b; --ink: #fff;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161618; --panel: #202023; --text: #ececee; --muted: #9a9aa2; --line: #34343a; --accent: #6aa5ff;
+    --angry: #ff6b74; --disgust: #8fcf4a; --fear: #a58bff; --happy: #f2c14e; --neutral: #a8adb5;
+    --sad: #5fa3ff; --surprise: #ff9a4d; --_unsure: #b0b0b0; --_reject: #e6e6e6; --ink: #111;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, "Segoe UI", sans-serif;
+       display: flex; flex-direction: column; overflow: hidden; }
+header { background: var(--panel); border-bottom: 1px solid var(--line); padding: 8px 14px; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+h1 { font-size: 16px; margin: 0 8px 0 0; }
+.total { color: var(--muted); }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.tab { border: 1px solid var(--line); background: transparent; color: var(--text); border-radius: 8px;
+       padding: 4px 10px 6px; cursor: pointer; font: inherit; min-width: 92px; text-align: left; }
+.tab b { display: block; font-weight: 600; }
+.tab small { color: var(--muted); }
+.tab .bar { height: 3px; background: var(--line); border-radius: 2px; margin-top: 3px; overflow: hidden; }
+.tab .bar i { display: block; height: 100%; background: var(--c); }
+.tab.on { border-color: var(--c); box-shadow: inset 0 0 0 1px var(--c); }
+.controls { margin-left: auto; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+select, label { font: inherit; color: var(--text); }
+select { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
+.status { padding: 6px 14px; color: var(--muted); display: flex; gap: 16px; flex-wrap: wrap; }
+.status b { color: var(--text); font-weight: 600; }
+main { flex: 1; min-height: 0; padding: 8px 14px; overflow: hidden; }
+#grid { display: grid; gap: 8px; justify-content: center; align-content: start; height: 100%; }
+.tile { position: relative; border-radius: 6px; background: var(--panel); outline: 1px solid var(--line);
+        cursor: pointer; user-select: none; overflow: hidden; }
+.tile img { display: block; width: var(--t); height: var(--t); object-fit: cover; image-rendering: auto; }
+.tile.px img { image-rendering: pixelated; }
+.tile .cap { height: 22px; padding: 2px 6px; font-size: 12px; display: flex; justify-content: space-between;
+             gap: 4px; white-space: nowrap; overflow: hidden; }
+.tile .cap .hint { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.tile.sel { outline: 3px solid var(--accent); outline-offset: 1px; }
+.tile.chg { box-shadow: inset 0 0 0 4px var(--c); }
+.tile .to { position: absolute; left: 4px; top: 4px; background: var(--c); color: var(--ink); font-weight: 700;
+            font-size: 12px; padding: 1px 6px; border-radius: 4px; }
+.tile.cl { box-shadow: inset 0 0 0 4px var(--c); outline-style: dashed; }
+.tile.cl .to::before { content: "Claude "; font-weight: 400; }
+.tile .ok { position: absolute; right: 4px; top: 4px; background: #0008; color: #fff; font-size: 11px;
+            padding: 0 5px; border-radius: 4px; }
+.tile .num { position: absolute; right: 4px; bottom: 26px; color: #fff; text-shadow: 0 0 3px #000; font-size: 11px; }
+.empty { grid-column: 1 / -1; text-align: center; color: var(--muted); padding: 60px 0; font-size: 16px; }
+footer { background: var(--panel); border-top: 1px solid var(--line); padding: 8px 14px; display: flex;
+         gap: 6px; flex-wrap: wrap; align-items: center; }
+.k { border: 1px solid var(--line); background: transparent; color: var(--text); border-radius: 6px;
+     padding: 5px 9px; cursor: pointer; font: inherit; }
+.k kbd { font: 600 12px ui-monospace, monospace; background: var(--c, var(--muted)); color: var(--ink);
+         border-radius: 3px; padding: 0 4px; margin-right: 5px; }
+.k.main { background: var(--accent); color: #fff; border-color: var(--accent); margin-left: auto; }
+.k.main kbd { background: #fff3; }
+#toast { position: fixed; right: 16px; bottom: 64px; background: var(--text); color: var(--bg); padding: 8px 12px;
+         border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 520px; }
+#toast.show { opacity: .95; }
+#toast.err { background: var(--angry); color: #fff; }
+.overlay { position: fixed; inset: 0; background: #000a; display: none; align-items: center; justify-content: center; }
+.overlay.show { display: flex; }
+.card { background: var(--panel); color: var(--text); border-radius: 12px; padding: 16px; max-width: 920px;
+        max-height: 92vh; overflow: auto; }
+#zoom .imgs { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+#zoom img.big { width: 384px; height: 384px; }
+#zoom img.small { width: 192px; height: 192px; image-rendering: pixelated; }
+#zoom .meta { min-width: 230px; }
+.pb { display: grid; grid-template-columns: 70px 1fr 40px; gap: 4px; align-items: center; font-size: 12px; }
+.pb i { display: block; height: 8px; background: var(--c); border-radius: 2px; }
+#help table { border-collapse: collapse; font-size: 13px; }
+#help td, #help th { border-bottom: 1px solid var(--line); padding: 5px 8px; text-align: left; vertical-align: top; }
+#help ul { margin: 8px 0 0; padding-left: 18px; font-size: 13px; }
+.muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <div class="row">
+    <h1>Duyệt nhãn khuôn mặt VTV</h1>
+    <span class="total" id="total"></span>
+    <div class="controls">
+      <label>Thứ tự
+        <select id="order">
+          <option value="claude">Claude đánh dấu trước</option>
+          <option value="unsure">Model ít chắc trước</option>
+          <option value="sure">Model chắc trước</option>
+          <option value="rare">Ứng viên angry/disgust/fear/surprise trước</option>
+          <option value="scene">Theo cảnh (cùng video liền nhau)</option>
+        </select>
+      </label>
+      <label>Cỡ ảnh
+        <select id="size">
+          <option value="120">nhỏ</option>
+          <option value="150" selected>vừa</option>
+          <option value="192">lớn</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="onlyNew" checked> Chỉ ảnh chưa duyệt</label>
+      <label title="Phím C: đề xuất của Claude hiện sẵn thành thay đổi chờ lưu"><input type="checkbox" id="claude" checked> Đề xuất Claude (C)</label>
+      <label title="Phím G"><input type="checkbox" id="showModel"> Gợi ý model (G)</label>
+      <label title="Phím V: ảnh 48×48 như model thấy"><input type="checkbox" id="small"> 48×48 (V)</label>
+    </div>
+  </div>
+  <div class="tabs" id="tabs"></div>
+</header>
+<div class="status" id="status"></div>
+<main><div id="grid"></div></main>
+<footer id="keys"></footer>
+<div id="toast"></div>
+
+<div class="overlay" id="zoom"><div class="card">
+  <div class="imgs">
+    <img class="big" id="zBig" alt="">
+    <div><img class="small" id="zSmall" alt=""><div class="muted">48×48 (ảnh model học)</div></div>
+    <div class="meta" id="zMeta"></div>
+  </div>
+  <p class="muted">Phím lớp vẫn dùng được · Space / Esc: đóng · ← →: ảnh trước / sau</p>
+</div></div>
+
+<div class="overlay" id="help"><div class="card">
+  <h2 style="margin-top:0">Tiêu chí (theo CK+, FACS)</h2>
+  <table>
+    <tr><th>Phím</th><th>Lớp</th><th>Phải thấy</th></tr>
+    <tr><td>1</td><td>angry</td><td>Lông mày kéo xuống và chụm lại (AU4), mắt trừng hoặc nheo, <b>môi mím chặt</b> hoặc nghiến răng (AU23/24)</td></tr>
+    <tr><td>2</td><td>disgust</td><td><b>Nhăn sống mũi</b> (AU9) hoặc <b>nhếch môi trên</b> (AU10), má nâng</td></tr>
+    <tr><td>3</td><td>fear</td><td>Lông mày <b>vừa nhướn vừa chau</b> (AU1+2+4), mắt mở to (AU5), miệng <b>kéo ngang</b> (AU20), có thể hé</td></tr>
+    <tr><td>4</td><td>happy</td><td>Khóe môi kéo lên (AU12); má nâng, đuôi mắt nhăn (AU6)</td></tr>
+    <tr><td>5</td><td>neutral</td><td>Mặt thả lỏng, không cơ nào hoạt động rõ</td></tr>
+    <tr><td>6</td><td>sad</td><td>Đầu trong lông mày nhướn lên hình mái nhà /\ (AU1+4), khóe môi trễ (AU15)</td></tr>
+    <tr><td>7</td><td>surprise</td><td>Lông mày <b>nhướn cao, cong, không chau</b> (AU1+2), mắt mở to (AU5), miệng há tròn (AU26/27)</td></tr>
+    <tr><td>U</td><td>chưa chắc</td><td>Biểu cảm quá nhẹ hoặc không chắc: không vào dataset</td></tr>
+    <tr><td>X</td><td>loại</td><td>Không phải mặt người, bị che (tay, micro, chữ), mờ/tối, đang chớp mắt, quay nghiêng rõ, căn chỉnh hỏng, khinh bỉ (nhếch một bên mép)</td></tr>
+  </table>
+  <ul>
+    <li><b>Đang nói ≠ ngạc nhiên:</b> miệng há nhưng lông mày và mắt bình thường → neutral.</li>
+    <li><b>Fear / surprise:</b> fear có thêm chau mày và môi kéo ngang; surprise mày cong cao, miệng há tròn.</li>
+    <li><b>Angry / disgust:</b> angry là chau mày, mím môi; disgust là nhăn mũi, nhếch môi trên.</li>
+    <li><b>Sad / neutral:</b> chỉ cúi mặt hay nhìn xuống thì vẫn là neutral.</li>
+    <li>Chỉ nhìn khuôn mặt, không đoán theo bối cảnh phim.</li>
+  </ul>
+  <h3>Cách làm nhanh</h3>
+  <ul>
+    <li>Click hoặc dùng phím mũi tên chọn ảnh <b>sai</b> → bấm phím lớp đúng (ảnh tự chuyển sang ảnh kế). Ctrl/Shift + click để chọn nhiều ảnh rồi bấm một phím.</li>
+    <li><b>Enter</b>: lưu cả trang. Ảnh bị đổi lớp được chuyển thư mục; ảnh không đổi được ghi là <b>đã xác nhận đúng</b>, nên hãy nhìn hết trang trước khi bấm.</li>
+    <li>Ô viền nét đứt <b>"Claude → …"</b> là đề xuất của Claude (chỉ đánh dấu ca rõ: mờ, tối, bị che, nhắm mắt, mặt bình thường, đang cười). Đồng ý thì để nguyên; không đồng ý thì chọn ô và bấm phím lớp đúng (bấm phím của thư mục hiện tại = giữ nguyên). Claude nhìn ảnh kém hơn model trên ảnh ngoài đời, nên hãy tự xem từng ô.</li>
+    <li><b>Ctrl+Z</b>: hoàn tác trang vừa lưu. <b>Esc</b>: bỏ các thay đổi chưa lưu của trang. <b>Space</b>: phóng to ảnh đang chọn. <b>PageDown / PageUp</b>: sang trang không lưu.</li>
+  </ul>
+  <p class="muted">Bấm ? hoặc Esc để đóng.</p>
+</div></div>
+
+<script>
+const CLASSES = ["angry", "disgust", "fear", "happy", "neutral", "sad", "surprise"];
+const FOLDERS = [...CLASSES, "_unsure", "_reject"];
+const NAME = { _unsure: "chưa chắc", _reject: "loại" };
+const KEYCODE = { Digit1: "angry", Digit2: "disgust", Digit3: "fear", Digit4: "happy", Digit5: "neutral",
+  Digit6: "sad", Digit7: "surprise", Numpad1: "angry", Numpad2: "disgust", Numpad3: "fear", Numpad4: "happy",
+  Numpad5: "neutral", Numpad6: "sad", Numpad7: "surprise", KeyU: "_unsure", KeyX: "_reject" };
+const KEYLABEL = { angry: "1", disgust: "2", fear: "3", happy: "4", neutral: "5", sad: "6", surprise: "7",
+  _unsure: "U", _reject: "X" };
+const GAP = 8, CAP = 22;
+const $ = id => document.getElementById(id);
+const name = f => NAME[f] || f;
+const color = f => `var(--${f})`;
+
+const S = { folder: "disgust", order: "claude", onlyNew: true, showModel: false, small: false, size: 150, claude: true,
+  fromClaude: new Set(),
+  items: [], start: 0, per: 1, cols: 1, cursor: 0, sel: new Set([0]), soft: false, pending: new Map(), counts: null,
+  busy: false, confirmLeave: null };
+
+function store(k, v) { try { localStorage.setItem("vtvreview." + k, JSON.stringify(v)); } catch (e) {} }
+function recall(k, d) { try { const v = localStorage.getItem("vtvreview." + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } }
+
+async function api(path, body) {
+  const opt = body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json", "X-Review": "1" },
+    body: JSON.stringify(body) };
+  const r = await fetch(path, opt);
+  const j = await r.json().catch(() => ({ error: "HTTP " + r.status }));
+  if (!r.ok) throw new Error(j.error || "HTTP " + r.status);
+  return j;
+}
+
+let toastTimer = null;
+function toast(msg, err) {
+  const t = $("toast");
+  t.textContent = msg; t.className = "show" + (err ? " err" : "");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className = "", err ? 6000 : 2500);
+}
+
+const visible = () => S.onlyNew ? S.items.filter(x => !x.checked) : S.items;
+const pageItems = () => visible().slice(S.start, S.start + S.per);
+const ownChanges = () => [...S.pending.keys()].filter(id => !S.fromClaude.has(id)).length;
+
+function applyHints() {  // Claude's pre-screen as pending changes the reviewer accepts, edits or drops
+  if (!S.claude) return;
+  for (const x of S.items) {
+    if (x.hint && !x.checked && !S.pending.has(x.id)) { S.pending.set(x.id, x.hint); S.fromClaude.add(x.id); }
+  }
+}
+function dropHints() { for (const id of S.fromClaude) S.pending.delete(id); S.fromClaude.clear(); }
+
+function fit() {
+  const g = $("grid").parentElement;
+  const W = g.clientWidth - 28, H = g.clientHeight - 16;
+  S.cols = Math.max(1, Math.floor((W + GAP) / (S.size + GAP)));
+  const rows = Math.max(1, Math.floor((H + GAP) / (S.size + CAP + GAP)));
+  S.per = S.cols * rows;
+  S.start = Math.floor(S.start / S.per) * S.per;
+}
+
+function top2(p) {
+  if (!p) return "";
+  return p.map((v, i) => [v, CLASSES[i]]).sort((a, b) => b[0] - a[0]).slice(0, 2)
+    .map(([v, c]) => `${c} ${Math.round(v * 100)}`).join(" · ");
+}
+
+function renderTabs() {
+  const c = S.counts ? S.counts.counts : {};
+  $("tabs").innerHTML = FOLDERS.map(f => {
+    const [t, n] = c[f] || [0, 0];
+    const pct = t ? Math.round(100 * n / t) : 0;
+    return `<button class="tab${f === S.folder ? " on" : ""}" style="--c:${color(f)}" data-f="${f}">
+      <b>${name(f)}</b><small>${n} / ${t} đã duyệt</small><div class="bar"><i style="width:${pct}%"></i></div></button>`;
+  }).join("");
+  if (S.counts) $("total").textContent = `Tổng đã duyệt: ${S.counts.checked} / ${S.counts.faces} ảnh`;
+}
+
+function renderStatus() {
+  const v = visible(), pages = Math.max(1, Math.ceil(v.length / S.per));
+  const chg = pageItems().filter(x => S.pending.has(x.id)).length;
+  const cl = pageItems().filter(x => S.fromClaude.has(x.id)).length;
+  $("status").innerHTML = `<span>Thư mục <b>${name(S.folder)}</b>: ${v.length} ảnh ${S.onlyNew ? "chưa duyệt" : ""}</span>
+    <span>Trang <b>${Math.floor(S.start / S.per) + 1}</b> / ${pages}</span>
+    <span><b>${chg}</b> ảnh đổi lớp trên trang này${cl ? ` (${cl} do Claude đề xuất)` : ""}</span>
+    <span>Chọn ảnh sai → phím lớp đúng · <b>Enter</b> lưu cả trang (ảnh không đổi = xác nhận đúng) · <b>?</b> tiêu chí</span>`;
+}
+
+function render() {
+  const items = pageItems();
+  const g = $("grid");
+  g.style.gridTemplateColumns = `repeat(${S.cols}, ${S.size}px)`;
+  g.style.setProperty("--t", S.size + "px");
+  if (!items.length) {
+    g.innerHTML = `<div class="empty">${S.items.length ? "Đã duyệt hết ảnh trong thư mục này." : "Thư mục trống."}</div>`;
+  } else {
+    g.innerHTML = items.map((x, k) => {
+      const to = S.pending.get(x.id);
+      const hint = S.showModel ? top2(x.p) : (x.claude ? "Claude: " + x.claude : "");
+      return `<div class="tile${S.sel.has(k) ? " sel" : ""}${to ? " chg" : ""}${S.fromClaude.has(x.id) ? " cl" : ""}${S.small ? " px" : ""}" data-k="${k}"
+          style="--c:${color(to || S.folder)}" title="${x.id}">
+        <img src="/img/${encodeURIComponent(x.id)}.png${S.small ? "?s=48" : ""}" alt="" draggable="false">
+        ${to ? `<span class="to">→ ${name(to)}</span>` : ""}
+        ${x.checked ? `<span class="ok">✓ đã duyệt</span>` : ""}
+        <span class="num">${k + 1}</span>
+        <div class="cap"><span class="hint">${hint}</span></div></div>`;
+    }).join("");
+  }
+  renderStatus();
+  if ($("zoom").classList.contains("show")) renderZoom();
+  // preload the next page
+  visible().slice(S.start + S.per, S.start + 2 * S.per).forEach(x => {
+    new Image().src = `/img/${encodeURIComponent(x.id)}.png${S.small ? "?s=48" : ""}`;
+  });
+}
+
+function renderKeys() {
+  $("keys").innerHTML = FOLDERS.map(f =>
+    `<button class="k" style="--c:${color(f)}" data-label="${f}"><kbd>${KEYLABEL[f]}</kbd>${name(f)}</button>`).join("") +
+    `<button class="k" data-act="undo"><kbd>Ctrl+Z</kbd>Hoàn tác</button>
+     <button class="k" data-act="help"><kbd>?</kbd>Tiêu chí</button>
+     <button class="k main" data-act="save"><kbd>Enter</kbd>Lưu trang</button>`;
+}
+
+async function load(keepStart) {
+  try {
+    S.items = await api(`/api/list?folder=${encodeURIComponent(S.folder)}&order=${S.order}`);
+  } catch (e) { toast(e.message, true); S.items = []; }
+  if (!keepStart) S.start = 0;
+  applyHints();
+  S.cursor = 0; S.sel = new Set([0]);
+  fit(); render(); renderTabs();
+}
+
+async function refreshCounts() {
+  try { S.counts = await api("/api/state"); renderTabs(); } catch (e) { toast(e.message, true); }
+}
+
+function select(k, add) {
+  const n = pageItems().length;
+  if (!n) return;
+  k = Math.max(0, Math.min(n - 1, k));
+  // after a label key the cursor jumps on by itself (soft): Ctrl/Shift+click then starts a new selection
+  if (add && !S.soft) { S.sel.has(k) && S.sel.size > 1 ? S.sel.delete(k) : S.sel.add(k); }
+  else S.sel = new Set([k]);
+  S.soft = false;
+  S.cursor = k;
+  render();
+}
+
+function setLabel(f) {
+  const items = pageItems();
+  if (!items.length) return;
+  for (const k of S.sel) {
+    const x = items[k];
+    if (!x) continue;
+    S.fromClaude.delete(x.id);
+    if (f === S.folder) S.pending.delete(x.id); else S.pending.set(x.id, f);
+  }
+  if (S.sel.size === 1 && S.cursor < items.length - 1) { S.cursor += 1; S.sel = new Set([S.cursor]); S.soft = true; }
+  render();
+}
+
+async function save() {
+  if (S.busy) return;
+  const items = pageItems();
+  if (!items.length) return;
+  S.busy = true;
+  try {
+    const decisions = items.map(x => ({ id: x.id, to: S.pending.get(x.id) || S.folder }));
+    const r = await api("/api/save", { decisions });
+    const moved = new Set(decisions.filter(d => d.to !== S.folder).map(d => d.id));
+    S.items = S.items.filter(x => !moved.has(x.id));
+    for (const x of items) { x.checked = true; S.pending.delete(x.id); S.fromClaude.delete(x.id); }
+    if (!S.onlyNew) S.start += S.per - moved.size;
+    S.counts = r;
+    S.cursor = 0; S.sel = new Set([0]);
+    render(); renderTabs();
+    toast(`Đã lưu trang ${r.batch}: ${r.saved} ảnh, ${r.moved} ảnh chuyển lớp`);
+  } catch (e) { toast("Chưa lưu: " + e.message, true); }
+  S.busy = false;
+}
+
+async function undo() {
+  if (S.busy) return;
+  S.busy = true;
+  try {
+    const r = await api("/api/undo", {});
+    S.counts = r;
+    toast(`Đã hoàn tác trang ${r.batch}: ${r.undone} ảnh, trả ${r.moved_back} ảnh về thư mục cũ` +
+      (r.skipped ? ` (${r.skipped} ảnh đã bị chuyển tiếp, giữ nguyên)` : ""));
+    await load(false);
+  } catch (e) { toast(e.message, true); }
+  S.busy = false;
+}
+
+function goPage(d) {
+  const n = visible().length;
+  const s = S.start + d * S.per;
+  if (s < 0 || s >= n) return;
+  S.start = s; S.cursor = 0; S.sel = new Set([0]);
+  render();
+}
+
+function switchFolder(f) {
+  if (f === S.folder) return;
+  if (ownChanges() && S.confirmLeave !== f) {
+    S.confirmLeave = f;
+    toast(`Còn ${ownChanges()} thay đổi của bạn chưa lưu. Bấm lại để bỏ chúng và sang ${name(f)}.`, true);
+    return;
+  }
+  S.confirmLeave = null; S.pending.clear(); S.fromClaude.clear();
+  S.folder = f; store("folder", f);
+  load(false);
+}
+
+function renderZoom() {
+  const x = pageItems()[S.cursor];
+  if (!x) { $("zoom").classList.remove("show"); return; }
+  const src = `/img/${encodeURIComponent(x.id)}.png`;
+  $("zBig").src = src; $("zSmall").src = src + "?s=48";
+  const to = S.pending.get(x.id);
+  const bars = x.p ? CLASSES.map((c, i) => `<span>${c}</span><i style="--c:${color(c)};width:${Math.round(x.p[i] * 100)}%"></i>
+      <span>${Math.round(x.p[i] * 100)}%</span>`).join("") : "<span class='muted'>không có</span>";
+  $("zMeta").innerHTML = `<div><b>${name(S.folder)}</b>${to ? ` → <b style="color:${color(to)}">${name(to)}</b>` : ""}</div>
+    <div class="muted" style="word-break:break-all">${x.id}</div>
+    ${x.claude ? `<div>Claude đã xếp: ${x.claude}</div>` : ""}
+    <p class="muted" style="margin:10px 0 4px">Gợi ý model (FER+ + HSEmotion)</p>
+    <div class="pb">${bars}</div>`;
+}
+
+function toggleZoom(force) {
+  const z = $("zoom");
+  const on = force === undefined ? !z.classList.contains("show") : force;
+  z.classList.toggle("show", on);
+  if (on) renderZoom();
+}
+
+document.addEventListener("keydown", e => {
+  if (e.target.matches("select, input")) { if (e.key === "Enter" || e.key === "Escape") e.target.blur(); else return; }
+  const help = $("help").classList.contains("show"), zoom = $("zoom").classList.contains("show");
+  if ((e.ctrlKey || e.metaKey) && e.code === "KeyZ") { e.preventDefault(); undo(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === "?") { $("help").classList.toggle("show"); return; }
+  if (help) { if (e.key === "Escape") $("help").classList.remove("show"); return; }
+  if (KEYCODE[e.code]) { e.preventDefault(); setLabel(KEYCODE[e.code]); return; }
+  switch (e.key) {
+    case "Enter": e.preventDefault(); if (zoom) toggleZoom(false); save(); break;
+    case "Escape":
+      if (zoom) toggleZoom(false);
+      else { pageItems().forEach(x => { S.pending.delete(x.id); S.fromClaude.delete(x.id); }); render(); toast("Đã bỏ mọi thay đổi chưa lưu của trang (kể cả đề xuất Claude)"); }
+      break;
+    case " ": e.preventDefault(); toggleZoom(); break;
+    case "ArrowLeft": e.preventDefault(); select(S.cursor - 1, e.shiftKey); break;
+    case "ArrowRight": e.preventDefault(); select(S.cursor + 1, e.shiftKey); break;
+    case "ArrowUp": e.preventDefault(); if (!zoom) select(S.cursor - S.cols, e.shiftKey); break;
+    case "ArrowDown": e.preventDefault(); if (!zoom) select(S.cursor + S.cols, e.shiftKey); break;
+    case "PageDown": case "]": e.preventDefault(); goPage(1); break;
+    case "PageUp": case "[": e.preventDefault(); goPage(-1); break;
+    default:
+      if (e.code === "KeyC") { $("claude").checked = S.claude = !S.claude; toggleClaude(); }
+      if (e.code === "KeyG") { $("showModel").checked = S.showModel = !S.showModel; store("showModel", S.showModel); render(); }
+      if (e.code === "KeyV") { $("small").checked = S.small = !S.small; render(); }
+  }
+});
+
+$("grid").addEventListener("click", e => {
+  const t = e.target.closest(".tile");
+  if (t) select(+t.dataset.k, e.ctrlKey || e.metaKey || e.shiftKey);
+});
+$("grid").addEventListener("dblclick", e => {
+  const t = e.target.closest(".tile");
+  if (t) { select(+t.dataset.k, false); toggleZoom(true); }
+});
+$("tabs").addEventListener("click", e => { const t = e.target.closest(".tab"); if (t) switchFolder(t.dataset.f); });
+$("keys").addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  if (b.dataset.label) setLabel(b.dataset.label);
+  else if (b.dataset.act === "save") save();
+  else if (b.dataset.act === "undo") undo();
+  else if (b.dataset.act === "help") $("help").classList.toggle("show");
+});
+$("zoom").addEventListener("click", e => { if (e.target.id === "zoom") toggleZoom(false); });
+$("help").addEventListener("click", e => { if (e.target.id === "help") $("help").classList.remove("show"); });
+$("order").addEventListener("change", e => { S.order = e.target.value; store("order", S.order); S.pending.clear(); S.fromClaude.clear(); load(false); });
+function toggleClaude() { store("claude", S.claude); if (S.claude) applyHints(); else dropHints(); render(); }
+$("claude").addEventListener("change", e => { S.claude = e.target.checked; toggleClaude(); });
+$("size").addEventListener("change", e => { S.size = +e.target.value; store("size", S.size); fit(); render(); });
+$("onlyNew").addEventListener("change", e => { S.onlyNew = e.target.checked; S.start = 0; S.sel = new Set([0]); S.cursor = 0; render(); });
+$("showModel").addEventListener("change", e => { S.showModel = e.target.checked; store("showModel", S.showModel); render(); });
+$("small").addEventListener("change", e => { S.small = e.target.checked; render(); });
+let resizeTimer = null;
+window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { fit(); render(); }, 150); });
+window.addEventListener("beforeunload", e => { if (ownChanges()) { e.preventDefault(); e.returnValue = ""; } });
+
+S.folder = recall("folder", "disgust"); if (!FOLDERS.includes(S.folder)) S.folder = "disgust";
+S.order = recall("order", "claude"); S.size = recall("size", 150); S.showModel = recall("showModel", false);
+S.claude = recall("claude", true); $("claude").checked = S.claude;
+$("order").value = S.order; $("size").value = String(S.size); $("showModel").checked = S.showModel;
+renderKeys();
+refreshCounts().then(() => load(false));
+</script>
+</body>
+</html>

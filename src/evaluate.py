@@ -22,7 +22,7 @@ import torch
 from sklearn.metrics import classification_report
 from torch.utils.data import DataLoader
 
-from src.data.dataset import FERDataset, class_names, read_split
+from src.data.dataset import FERDataset, read_split
 from src.data.transforms import build_transforms, resize_batch
 from src.predict import load_run, predict_probs
 from src.utils.config import load_config
@@ -83,7 +83,9 @@ def main():
     monitor = cfg["train"]["monitor"]
     k = len(classes)
     df = read_split(cfg, args.split)
-    assert class_names(df, k) == classes, "class names differ from the checkpoint"
+    # a small split may miss a class (the 45 CK+ test images have no fear); the rest must match
+    pairs = df[["label_idx", "label"]].drop_duplicates().itertuples(index=False)
+    assert all(classes[i] == name for i, name in pairs), "class names differ from the checkpoint"
 
     y_true = df["label_idx"].to_numpy()
     probs = predict_probs(model, cfg, df, device)

@@ -1,0 +1,170 @@
+{
+  "run": "mobilenet_v2_s123_20261108-1541",
+  "model": "mobilenet_v2",
+  "seed": 123,
+  "split": "test",
+  "n_images": 2198,
+  "classes": [
+    "angry",
+    "disgust",
+    "fear",
+    "happy",
+    "neutral",
+    "sad",
+    "surprise"
+  ],
+  "best_epoch": 21,
+  "best_val_macro_f1": 0.7415459395943006,
+  "accuracy": 0.8061874431301183,
+  "macro_f1": 0.6432849882071935,
+  "weighted_f1": 0.800201507301983,
+  "ci95": {
+    "accuracy": [
+      0.7902638762511374,
+      0.8207461328480437
+    ],
+    "macro_f1": [
+      0.6044059676010751,
+      0.6760741476343465
+    ]
+  },
+  "bootstrap_samples": 1000,
+  "per_class": {
+    "angry": {
+      "precision": 0.6131386861313869,
+      "recall": 0.6614173228346457,
+      "f1": 0.6363636363636364,
+      "support": 127
+    },
+    "disgust": {
+      "precision": 0.6226415094339622,
+      "recall": 0.3333333333333333,
+      "f1": 0.4342105263157895,
+      "support": 99
+    },
+    "fear": {
+      "precision": 0.696969696969697,
+      "recall": 0.5348837209302325,
+      "f1": 0.6052631578947368,
+      "support": 86
+    },
+    "happy": {
+      "precision": 0.8679549114331723,
+      "recall": 0.9607843137254902,
+      "f1": 0.9120135363790186,
+      "support": 561
+    },
+    "neutral": {
+      "precision": 0.8942420681551116,
+      "recall": 0.8262757871878393,
+      "f1": 0.8589164785553047,
+      "support": 921
+    },
+    "sad": {
+      "precision": 0.6586433260393874,
+      "recall": 0.8179347826086957,
+      "f1": 0.7296969696969697,
+      "support": 368
+    },
+    "surprise": {
+      "precision": 0.6153846153846154,
+      "recall": 0.2222222222222222,
+      "f1": 0.32653061224489793,
+      "support": 36
+    }
+  },
+  "per_source": {
+    "vtv": {
+      "n_images": 2198,
+      "accuracy": 0.8061874431301183,
+      "classes": [
+        "angry",
+        "disgust",
+        "fear",
+        "happy",
+        "neutral",
+        "sad",
+        "surprise"
+      ]
+    }
+  },
+  "confusion_matrix": [
+    [
+      84,
+      7,
+      1,
+      4,
+      7,
+      24,
+      0
+    ],
+    [
+      38,
+      33,
+      0,
+      7,
+      7,
+      14,
+      0
+    ],
+    [
+      4,
+      3,
+      46,
+      3,
+      16,
+      10,
+      4
+    ],
+    [
+      0,
+      1,
+      1,
+      539,
+      10,
+      10,
+      0
+    ],
+    [
+      6,
+      1,
+      8,
+      48,
+      761,
+      96,
+      1
+    ],
+    [
+      3,
+      6,
+      6,
+      16,
+      36,
+      301,
+      0
+    ],
+    [
+      2,
+      2,
+      4,
+      4,
+      14,
+      2,
+      8
+    ]
+  ],
+  "params": 2232839,
+  "checkpoint_mb": 8.73725414276123,
+  "ms_per_image": {
+    "cpu": 15.924544500012416,
+    "gpu": 7.809408500033896
+  },
+  "timing": {
+    "batch_size": 1,
+    "precision": "fp32",
+    "cpu_threads": 6,
+    "cpu": "Intel64 Family 6 Model 141 Stepping 1, GenuineIntel",
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU"
+  },
+  "torch": "2.14.0+cu130"
+}

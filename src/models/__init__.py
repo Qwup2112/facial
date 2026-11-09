@@ -3,6 +3,7 @@ from .cnn_scratch import EmotionCNN
 from .pretrained import build_mobilenet_v2, build_resnet18
 
 MODELS = ("cnn_scratch", "resnet18", "mobilenet_v2")
+HEADS = {"cnn_scratch": "head", "resnet18": "fc", "mobilenet_v2": "classifier"}   # classifier module per model
 
 
 def build_model(name: str, num_classes: int, cfg: dict):

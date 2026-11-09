@@ -1,0 +1,13 @@
+# VTV step 1d: re-run with a lower eye-distance gate (16 px), first for the 360p frame images
+# (VTV_Emotion_Dataset_Final/final_dataset/images, 640x360 / 640x252: 40% of their YuNet faces failed `small` at 20 px),
+# then for the 6 videos (user: 'tất cả đi', 2026-11-07), one `--only <video>` re-run each.
+# The re-run goes to a temporary folder and src.data.vtv_supplement adds only the new faces to data/vtv/review/:
+#   python -m src.data.vtv_faces --config configs/data/vtv_faces_eye16.yaml --out <tmp> --only final_dataset
+#   python -m src.data.vtv_supplement --run <tmp> --tag images_eye16
+#   python -m src.data.vtv_relabel --csv faces_images_eye16.csv && python -m src.data.vtv_build
+# Checked by eye at 48x48 on a run with eye 12 / yaw 0.28 (2026-11-07): eye 16-20 px looks like the 20-25 px faces
+# (scaled up at most 18.5/16 = 1.16x to the CK+ 48x48 layout); 14-16 px soft, some with the channel logo; 12-14 px
+# blurred. Yaw 0.20-0.28 would add more faces (431) but clearly turned (3/4 view), unlike CK+: kept at 0.20.
+_base_: vtv_faces.yaml
+gates:
+  min_eye_dist: 16

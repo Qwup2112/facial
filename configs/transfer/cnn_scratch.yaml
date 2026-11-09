@@ -1,0 +1,14 @@
+_base_: ../cnn_scratch.yaml
+# CK+ -> target dataset: train with --init runs/ckplus/cnn_scratch_s<seed>_<time>
+runs_dir: runs/transfer
+# data.splits_dir (base.yaml: data/splits) = the target dataset; point it at the new dataset's CSVs
+train:
+  stages:
+    - name: head                  # the new 7-class head on the CK+ backbone
+      epochs: 3
+      trainable: [head]
+      lr: {head: 1.0e-3}
+    - name: finetune
+      epochs: 40
+      trainable: [all]
+      lr: {all: 5.0e-4}           # half the from-scratch lr to keep more of the CK+ features; untuned, tune on val

@@ -96,3 +96,22 @@ only angry, disgust and fear).
   for FER2013, whose labels are known to be noisy. This, together with the 48×48 resolution, is the
   likely ceiling for all three models. The labeled test grids
   (`reports/figures/predictions_{model}_s42_test.png`, regenerated for the runs on the cleaned split) show several ambiguous or likely mislabeled faces.
+
+## CK+ stage (2026-10-21): `mobilenet_v2` learning rates
+
+CK+ transfer split (`data/ckplus/splits/transfer`): train 756 images / 84 people, val 126 images / 16 people;
+6 classes. Head 5 epochs + finetune 40 epochs, ~24 steps per epoch (~960 finetune steps, vs. ~34,000 on
+`dataset/`). On CV fold 0 the first `mobilenet_v2` config reached val accuracy ~0.85 while `resnet18`
+reached ~0.94, with train accuracy ~0.98 for both. The layer-wise learning rates were set for `dataset/`;
+with ~35x fewer steps the early layers barely move, so the finetune learning rates were raised 5x.
+Selection on the val people only (runs in `runs/ckplus_tune/`):
+
+| Finetune lrs (`features.14:` / `features.7:` / `classifier` / rest) | Val macro-F1 seed 42 | Seed 123 | Mean |
+|---|---|---|---|
+| 1e-4 / 5e-5 / 5e-4 / 2e-5 (as `configs/mobilenet_v2.yaml`) | 0.8835 | 0.8608 | 0.872 |
+| **5e-4 / 2.5e-4 / 2.5e-3 / 1e-4 (kept)** | 0.8912 | 0.9194 | **0.905** |
+
+The val set is small (126 images), so the gap is noisy, but both seeds agree. The higher lrs peak earlier
+(epoch 13–17) and best.pt keeps that epoch. `cnn_scratch` and `resnet18` were not tuned on CK+.
+Because the val people are also test people of other CV folds, this one choice makes the CV estimate of
+`mobilenet_v2` slightly optimistic (non-nested CV).

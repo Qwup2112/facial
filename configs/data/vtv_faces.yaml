@@ -1,0 +1,90 @@
+# VTV target dataset, step 1: clear frontal faces for human review (python -m src.data.vtv_faces).
+# Gates are set from the range measured on CK+ itself (CK+ 0.5th-99.5th percentile in comments),
+# widened a little where TV frames need it; see CLAUDE.md 3.7.
+source_root: "D:/Download/New folder"        # read only
+videos: ["*.mp4", "VTV_Emotion_Dataset_Final/*.mp4", "tro_doi_playlist/*.mp4"]
+# tro_doi_playlist/: Tro Doi ep. 01, 03, 06, 09, 12, 15 (user: ~6 episodes; from the user playlist PLtC-L_zqTr6tqhkdlZKG78KagOkEivmbH, 2026-11-07), yt-dlp format 270
+# (1080p avc1 ~3.3 Mbit/s, video only); ep. 16 = the "Tap Cuoi" video above. Added with --append, eye gate 16 (vtv_faces_eye16.yaml)
+images: ["VTV_Emotion_Dataset_Final/final_dataset/images/*.jpg", "*.jpg"]
+# skipped: New folder/VTV_Dataset_Training_Ready.zip (its 8,746 originals are in images/, the rest are rotated/flipped copies)
+# also skipped: New folder/VTV_Dataset_Training_Ready/image_setdata/ (the same zip unpacked, 19,200 jpg): 8,746 originals
+# byte-identical to images/ (already processed) + 10,454 *_aug rotated/flipped copies (classes padded to 3,200);
+# its folder labels agree with the ensemble on 15% of the faces (checked by eye: wrong), so they are not used
+video_step_s: 0.1            # 10 frames per second of video: catches short expression peaks; every frame
+                             # (24-30 fps) adds only near-identical copies that the dedup drops anyway
+workers: 10                  # frames analysed in parallel (12 logical CPUs)
+frame_block: 2000            # frame_*.jpg have no video name: frames n // 2000 form one group
+
+out_dir: data/vtv
+ckplus_images: data/ckplus/images            # CK+ 48x48 crops: landmark template of the alignment
+models:
+  yunet: data/external/models/yunet/face_detection_yunet_2023mar.onnx    # opencv_zoo, face + 5 landmarks
+  ferplus: data/external/models/ferplus/emotion-ferplus-8.onnx           # ONNX model zoo, label suggestion only
+
+detect:
+  max_side: 1280             # frames are downscaled to this for detection; crops come from the full frame
+  min_score: 0.5             # YuNet candidates kept for the gates (and rejected examples)
+
+gates:
+  score: 0.80                # YuNet face score; 0.80-0.90 still clear faces (glasses, dark), below ~0.75 ears and objects
+  min_eye_dist: 20           # px between the eyes in the frame; CK+ 48x48 crops have 18.5, so faces are never upscaled
+  max_roll: 30               # degrees of head tilt (removed by the alignment)
+  max_outside: 0.12          # share of the crop outside the frame (face cut by the border); above it, smeared edges
+  max_yaw: 0.20              # |nose offset| / eye distance, ~20 deg (0.15-0.20: slightly turned, both eyes clear); CK+ -0.062..0.085
+  pitch: [0.47, 0.68]        # (nose - eyes) / (mouth - eyes); CK+ 0.50..0.635
+  max_fit: 0.12              # RMS landmark error vs. the CK+ template / eye distance; CK+ <= 0.078
+  brightness: [50, 230]      # mean gray of the face at 48x48; CK+ 57..225
+  min_contrast: 20           # std of the face at 48x48; CK+ >= 23.5
+  min_sharpness: 200         # variance of the Laplacian at 48x48; CK+ 0.5th pct 295; TV 200-300 = soft but readable
+  max_blur: 0.60             # blur effect (Crete-Roffet) at 96x96, 0 sharp .. 1 blurred; > 0.60: old film upscales, out of focus
+  recheck_score: 0.85        # YuNet again on the aligned crop: score ...
+  recheck_err: 0.30          # ... and RMS landmark error / eye distance vs. the CK+ template (hands, objects, half faces fail)
+
+dedup:                       # NCC on the blurred 24x24 face; different people: 99th pct 0.72, 99.9th 0.856
+  recent_s: 60               # videos: compare with faces kept in the last 60 s ...
+  recent_frames: 120         # ... frame images (no time stamp): in the last 120 frames; within it:
+  recent_ncc_any: 0.85       #   NCC >= this -> duplicate (FER+ labels of soft faces flip between near-identical frames)
+  recent_ncc: 0.80           #   NCC >= this and the same suggested label -> duplicate (0.80-0.88: talking frames)
+  group_ncc: 0.90            # NCC >= this with any of the last `window` kept faces of the group -> duplicate
+  window: 400
+
+relabel:                     # step 1b: python -m src.data.vtv_relabel (ensemble re-sort of review/)
+  hsemotion:                 # HSEmotion (Savchenko), EfficientNet-B2 on AffectNet, averaged with FER+
+    - data/external/models/hsemotion/enet_b2_7.onnx
+    - data/external/models/hsemotion/enet_b2_8.onnx
+  min_conf: 0.4              # ensemble top probability below this -> _unsure/. RAF-DB: 84% sorted at 74% acc,
+                             # CK+: 97% at 90%; VTV: 74% sorted. 0.5 left 55% of VTV in _unsure although most
+                             # looked fine; faces added from 0.4 down to 0.35 are only ~37% right on RAF-DB
+  batch: 8                  # x2 (mirror) images of 260x260 per run: keeps RAM < ~1 GB
+  threads: 4
+
+build:                       # step 2: python -m src.data.vtv_build (after the review)
+  dataset_dir: data/vtv/dataset          # <split>/<class>/*.png at 48x48 + manifest.csv + report.md
+  zip: data/vtv/target_dataset.zip       # the same under dataset/ -> MyDrive/facial_emotion/target_dataset.zip
+  size: 48
+  sface: data/external/models/sface/face_recognition_sface_2021dec.onnx   # opencv_zoo face recognition
+  identity_sim: 0.25         # merge clusters while their AVERAGE cosine similarity >= this. Calibrated on VTV:
+                             # 2 faces in one frame (different people) median 0.11, max 0.46; same person, same
+                             # shot median 0.79, other shots 0.54-0.76. 0.40 split actors into several clusters
+                             # that landed in train AND test (6% of test leaked); 0.25: 0% leak, largest 7%
+  link_sim: 0.80             # faces of 2 sources (groups) with SFace cosine >= this = same person: the groups are
+                             # clustered together (frame_*.jpg are frames of the playlist videos); far above
+                             # 2 different people (max 0.46)
+  dup_sim: 0.90              # ... and >= this plus pixel NCC (blurred 24x24) >= dup_ncc: a copy, dropped
+  dup_ncc: 0.90              # (SFace >= 0.95: NCC >= 0.9 in 89%; 0.80-0.85: 4%, other frames of the person)
+  max_per_person_class: 100  # at most this many faces per (person, class), evenly spread over scenes (null = all).
+                             # Without it one Tao Quan performer = 14% of all faces and 86% of test; 100: 5% of
+                             # all, 15% of test, 11.9k of 16.2k faces kept, cuts mostly neutral/happy/sad
+  leak_sim: 0.50             # leakage check: a test face with >= leak_k train faces at cosine >= this = same person
+  leak_k: 5
+  balance:                   # step 2b (src.data.vtv_balance): user wants >= 1000 faces per emotion (2026-11-07);
+    min_per_class: 1000      # classes with fewer real faces get offline-augmented copies of TRAIN faces
+                             # (source = augmented, data.use_offline_aug: false drops them); val/test real; null = off
+  n_folds: 7                 # StratifiedGroupKFold over people: test = fold 0, val = fold 1, train = rest (~71/14/14)
+  seed: 0
+
+review:
+  size: 192                 # review PNG size (4x the 48x48 dataset image)
+  prelabel: ferplus          # ferplus: sort into the suggested class folder | none: everything in _unlabeled/
+  min_conf: 0.5              # FER+ top probability below this (or contempt) -> _unsure/
+  reject_examples: 60        # per gate, written to rejected_examples/ to check the gates

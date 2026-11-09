@@ -1,0 +1,17 @@
+_base_: ../mobilenet_v2.yaml
+runs_dir: runs/ckplus             # transfer checkpoints; src.ckplus_cv writes to ckplus.cv_runs_dir
+data:
+  splits_dir: data/ckplus/splits/transfer   # src.ckplus_cv swaps in splits/fold{k}
+  num_classes: 6                  # CK+ has no neutral; contempt is dropped
+train:
+  class_weight_ratio: 2.0         # CK+ is imbalanced (fear 75 vs surprise 249 images): weights on in every fold
+  stages:
+    - name: head
+      epochs: 5
+      trainable: [classifier]
+      lr: {classifier: 1.0e-3}
+    - name: finetune
+      epochs: 40                  # ~24 steps per epoch on CK+
+      trainable: [all]
+      # 5x the dataset/ lrs: CK+ gives ~35x fewer steps; val macro-F1 0.872 -> 0.905 (2 seeds, reports/tuning_log.md)
+      lr: {"features.14:": 5.0e-4, "features.7:": 2.5e-4, classifier: 2.5e-3, all: 1.0e-4}   # first matching prefix wins

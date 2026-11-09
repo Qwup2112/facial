@@ -36,4 +36,11 @@ eval:                           # src.evaluate reads this block from this file, 
   bootstrap_seed: 0             # same resamples for every model, so the CIs compare like with like
   timing_warmup: 20             # inference time (batch size 1): warm-up passes ...
   timing_runs: 200              # ... then timed passes
+ckplus:                         # CK+ stage: src.data.ckplus_folds, src.ckplus_cv (CLAUDE.md 3.6)
+  parquet: data/external/ckplus/train-00000-of-00001.parquet
+  root: data/ckplus             # images/, index.csv, splits/fold{k}/, splits/transfer/
+  num_classes: 6                # CK+ has no neutral; contempt is dropped
+  folds: 10                     # subject-independent: all frames of one person in one fold
+  fold_seed: 0
+  cv_runs_dir: runs/ckplus_cv
 seeds: [42, 123, 2024]
